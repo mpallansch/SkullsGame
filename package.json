@@ -1,0 +1,12 @@
+{
+  "name": "skulls-game",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "4.17.1",
+    "express-sse": "0.5.3",
+    "body-parser": "1.19.0",
+    "multer": "1.4.2",
+    "express-session": "1.17.0",
+    "cookie-parser": "1.4.5"
+  }
+}
