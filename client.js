@@ -23,28 +23,31 @@ var STATE_WAITING = 4;
 var Users = [
     {
         id: 'Matt',
-        password: 'a'
-        //password: 'kearney'
+        password: 'kearneykearneykearney'
     },
     {
         id: 'Joe',
-        password: 'a'
-        //password: 'david'
+        password: 'daviddaviddavid'
     },
     {
         id: 'Jenn',
-        password: 'a'
-        //password: 'cullen'
+        password: 'cullencullencullen'
     },
     {
         id: 'Mom',
-        password: 'a'
-        //password: 'moreland'
+        password: 'morelandmorelandmoreland'
     },
     {
         id: 'Cass',
-        password: 'a'
-        //password: 'antony'
+        password: 'antonyantonyantony'
+    },
+    {
+        id: 'Ashley',
+        password: 'cowncowncown'
+    },
+    {
+        id: 'Danni',
+        password: 'reneereneerenee'
     }
 ];
 
@@ -55,7 +58,9 @@ var GameState = {
     turn: 0,
     cardsPlayed: 0,
     numRevealed: 0,
+    numPasses: 0,
     round: 1,
+    lastTurn: '',
     phase: STATE_PREBIDDING
 };
 
@@ -71,17 +76,15 @@ function checkSignIn(req, res, next){
 
 function nextTurn(res, nextPhase){
     var originalTurn = GameState.turn;
-    var numberIn = 0;
     GameState.turn++;
     while(GameState.turn !== originalTurn && (!GameState.chairs[GameState.turn] || GameState.chairs[GameState.turn].defeated || GameState.chairs[GameState.turn].passed)) {
         GameState.turn++;
-        numberIn++;
         if (GameState.turn === 5) {
             GameState.turn = 0;
         }
     }
 
-    if (GameState.turn === originalTurn || (numberIn === 1 && GameState.turn === GameState.highestBidder)) {
+    if (GameState.turn === originalTurn || (GameState.turn === GameState.highestBidder && GameState.numPasses === (GameState.numPlayers - 1))) {
         GameState.phase = STATE_FULFILLING;
         GameState.turn = GameState.highestBidder;
     }
@@ -93,6 +96,8 @@ function nextRound(){
     GameState.cardsPlayed = 0;
     GameState.numRevealed = 0;
     GameState.numPlayers = 0;
+    GameState.numPasses = 0;
+    GameState.lastTurn = '';
     delete GameState.highestBid;
     delete GameState.highestBidder;
     GameState.chairs.forEach(function(chairObj){
@@ -113,6 +118,7 @@ app.get('/start', function(req, res){
     GameState.turn = 0;
     GameState.cardsPlayed = 0;
     GameState.numRevealed = 0;
+    GameState.numPasses = 0;
     GameState.chairs.forEach(function(chairObj){
         if (chairObj) {
             chairObj.numCards = 4;
@@ -123,6 +129,7 @@ app.get('/start', function(req, res){
             chairObj.numWins = 0;
         }
     });
+    GameState.lastTurn = '';
     sse.send(GameState);
     res.send('OK');
 });
@@ -136,6 +143,9 @@ app.get('/play-card', function(req, res){
     if (GameState.cardsPlayed === GameState.numPlayers * 4) {
         GameState.phase = STATE.bidding;
     }
+
+    GameState.lastTurn = GameState.chairs[GameState.turn].name + ' played a card';
+
     nextTurn();
 
     sse.send(GameState);
@@ -157,6 +167,9 @@ app.get('/play-bid', function(req, res){
 
         return;
     }
+
+    GameState.lastTurn = GameState.chairs[GameState.turn].name + ' bid ' + GameState.highestBid;
+
     nextTurn();
 
     sse.send(GameState);
@@ -170,6 +183,8 @@ app.get('/reveal-card', function(req, res){
         GameState.numRevealed++;
 
         GameState.phase = STATE_WAITING;
+
+        GameState.lastTurn = GameState.chairs[GameState.turn].name + ' revealed a skull';
 
         setTimeout(function(){
             if (GameState.chairs[GameState.highestBidder].hasSkull) {
@@ -191,6 +206,8 @@ app.get('/reveal-card', function(req, res){
     } else {
         GameState.chairs[chairIndex].numRevealed++;
         GameState.numRevealed++;
+
+        GameState.lastTurn = GameState.chairs[GameState.turn].name + ' revealed a flower';
 
         if (GameState.numRevealed === GameState.highestBid) {
             GameState.chairs[GameState.highestBidder].numWins++;
@@ -218,6 +235,8 @@ app.get('/reveal-card', function(req, res){
 
 app.get('/pass', function(req, res){
     GameState.chairs[GameState.turn].passed = true;
+    GameState.numPasses++;
+    GameState.lastTurn = GameState.chairs[GameState.turn].name + ' passed';
 
     nextTurn();
 
@@ -466,6 +485,11 @@ function renderGame(res, params) {
 
                 #players div {
                     padding-top: 4%;
+                    color: green;
+                }
+
+                #players div.empty {
+                    color: gray;
                 }
 
                 #players div:nth-child(1), #chairs .chair:nth-child(1){
@@ -522,6 +546,14 @@ function renderGame(res, params) {
 
                 #chairs .chair.win::before {
                     background-color: pink;
+                }
+
+                .player-name {
+                    color: green;
+                }
+
+                .player-name.defeated {
+                    color: red;
                 }
 
                 .card {
@@ -661,7 +693,7 @@ function renderGame(res, params) {
                 });
 
                 function renderLobbyPlayer(playersEl$, chairObj) {
-                    playersEl$.append('<div>' + (chairObj ? chairObj.name : 'Empty') + '</div>')
+                    playersEl$.append('<div class="' + (chairObj ? '' : 'empty') + '">' + (chairObj ? chairObj.name : 'Empty') + '</div>')
                 }
 
                 function renderChairUpdate(chairIndex, chairObj){
@@ -670,6 +702,7 @@ function renderGame(res, params) {
                         if(cardsEl$.length > chairObj.numCards){
                             cardsEl$.slice(chairObj.numCards).remove();
                         }
+                        $('.chair' + chairIndex + ' .card.skull').removeClass('skull');
                         for(var i = 0; i < (chairObj.numCards - chairObj.numPlayed); i++){
                             $('.chair' + chairIndex + ' .card:nth-child(' + (i + 1) + ')').removeClass('played');
                             if(chairIndex === position){
@@ -680,7 +713,7 @@ function renderGame(res, params) {
                         }
                         for(var i = (chairObj.numCards - chairObj.numPlayed); i < (chairObj.numCards - chairObj.numPlayed + chairObj.numRevealed); i++){
                             $('.chair' + chairIndex + ' .card:nth-child(' + (i + 1) + ')').addClass('played').addClass('up');
-                            if((3 - i) === chairObj.skullIndex){
+                            if((chairObj.numCards - 1 - i) === chairObj.skullIndex){
                                 $('.chair' + chairIndex + ' .card:nth-child(' + (i + 1) + ')').addClass('skull');
                             }
                         }
@@ -690,13 +723,12 @@ function renderGame(res, params) {
                         if(chairIndex === position){
                             if(chairObj.skullIndex !== -1 || !chairObj.hasSkull){
                                 var chairEl$ = $('.chair' + chairIndex + ' .card.skull');
-                                if(!chairEl$.hasClass('played')){
-                                    chairEl$.removeClass('skull');
-                                }
                             } else {
-                                $('.chair' + chairIndex + ' .card.skull').removeClass('skull');
                                 $('.chair' + chairIndex + ' .card:nth-child(1)').addClass('skull');
                             }
+                        }
+                        if(chairObj.defeated){
+                            $('.chair' + chairIndex + ' .player-name').addClass('defeated');
                         }
                     }
                 }
@@ -731,6 +763,7 @@ function renderGame(res, params) {
                             chairEl$.append(cardEl$);
 
                         }
+                        chairEl$.append('<p class="player-name">' + chairObj.name + '</p>');
                     } else {
                         chairEl$.text('Empty');
                     }
@@ -885,7 +918,7 @@ function renderGame(res, params) {
                             });
 
                             $('#phase').text((gameState.phase === STATE_PREBIDDING ? 'Playing Cards' : (gameState.phase === STATE_BIDDING ? 'Bidding' : (gameState.phase === STATE_FULFILLING ? 'Fulfilling Bid' : 'Finished'))) + '  |  ' + waiting);
-                            $('#round').text('Round: ' + gameState.round);
+                            $('#round').text('Round: ' + gameState.round + (gameState.lastTurn ? (' | ' + gameState.lastTurn) : ''));
                         }
                     } catch(e) {
                         console.log('Unable to parse game state', e);
