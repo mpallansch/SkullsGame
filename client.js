@@ -190,6 +190,7 @@ es.onmessage = function( event ) {
 						} );
 
 						if ( gameState.cardsPlayed >= gameState.numPlayers ) {
+							$( '#bidding' ).empty();
 							for ( var i = 1; i <= gameState.cardsPlayed; i++ ) {
 								var bid$ = $( '<div class="bid active" data-bid-value="' + i + '">' + i + '</div>' );
 								bid$.click( bidClick );
@@ -197,6 +198,7 @@ es.onmessage = function( event ) {
 							}
 						}
 					} else if ( gameState.phase === STATE_BIDDING ) {
+						$( '#bidding' ).empty();
 						for ( var i = ( gameState.highestBid + 1 ); i <= gameState.cardsPlayed; i++ ) {
 							var bid$ = $( '<div class="bid active" data-bid-value="' + i + '">' + i + '</div>' );
 							bid$.click( bidClick );

@@ -48,6 +48,10 @@ input[type="submit"] {
 	margin-top: 5%;
 }
 
+input[type="submit"]:hover {
+	cursor: pointer;
+}
+
 #user {
 	margin: 10px;
 	display: inline-block;
@@ -90,6 +94,10 @@ input[type="submit"] {
 	box-shadow: 0px 0px 5px 5px yellow;
 }
 
+#bidding .bid:hover {
+	cursor: pointer;
+}
+
 #logout-form {
 	float: right;
 }
@@ -103,6 +111,10 @@ input[type="submit"] {
 	background-color: lightgray;
 	margin-top: 5%;
 	font-size: large;
+}
+
+#logout:hover {
+	cursor: pointer;
 }
 
 #not-enough-players {
