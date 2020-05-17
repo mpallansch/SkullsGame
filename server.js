@@ -294,11 +294,18 @@ app.post( '/login', function( req, res ) {
 		for ( let i = 0; i < Users.length; i++ ) {
 			if ( Users[ i ].id === req.body.id && Users[ i ].password === req.body.password ) {
 				req.session.user = Users[ i ];
-				req.session.user.position = GameState.numPlayers;
-				GameState.chairs[ GameState.numPlayers ] = { name: req.session.user.id, numCards: 4, numPlayed: 0, numRevealed: 0, hasSkull: true, skullIndex: -1, numWins: 0 };
+				for ( let i = 0; i < GameState.chairs.length; i++ ) {
+					let chair = GameState.chairs[ i ];
+					if ( 'undefined' === typeof chair ) {
+						req.session.user.position = i;
+						GameState.chairs[ i ] = { name: req.session.user.id, numCards: 4, numPlayed: 0, numRevealed: 0, hasSkull: true, skullIndex: -1, numWins: 0 };
+						break;
+					}
+				};
 				GameState.numPlayers++;
 				sse.send( GameState );
 				res.redirect( '/game' );
+				console.log( 'login GameState', GameState );
 				return;
 			}
 		}
@@ -307,13 +314,19 @@ app.post( '/login', function( req, res ) {
 } );
 
 app.get( '/logout', function( req, res ) {
+	console.log( 'logout', req );
 	GameState.chairs[ req.session.user.position ] = undefined;
 	GameState.numPlayers--;
-	sse.send( GameState );
+
 	req.session.destroy( function() {
 		console.log( "user logged out." )
+		res.redirect( '/login' );
+		if ( GameState.numPlayers < 3 ) {
+			GameState.phase = STATE_WAITING;
+		}
+		sse.send( GameState );
+		console.log( 'GameState', GameState );
 	} );
-	res.redirect( '/login' );
 } );
 
 app.get( '/client.js', function( req, res ) {
@@ -394,11 +407,6 @@ function renderGame( res, params ) {
 			<script>
 				var id = '${params.id }';
 				var position = ${params.position };
-				var STATE_PREBIDDING = 0;
-				var STATE_BIDDING = 1;
-				var STATE_FULFILLING = 2;
-				var STATE_FINISHED = 3;
-				var STATE_WAITING = 4;
 			</script>
 			<script src="/client.js"></script>
 

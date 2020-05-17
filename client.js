@@ -6,6 +6,7 @@ var STATE_PREBIDDING = 0;
 var STATE_BIDDING = 1;
 var STATE_FULFILLING = 2;
 var STATE_FINISHED = 3;
+var STATE_WAITING = 4;
 
 $( '#begin' ).click( function() {
 	$.ajax( { url: '/start?cachebust=' + Math.random() * 1000000 } );
@@ -129,8 +130,9 @@ es.onmessage = function( event ) {
 			if ( !gameState.started ) {
 				if ( gameState.phase === STATE_FINISHED ) {
 					alert( gameState.chairs[ gameState.highestBidder ].name + ' wins!' );
-					$( '#chairs' ).empty();
+					//$( '#chairs' ).empty();
 					boardRendered = false;
+					gameState.phase = STATE_WAITING;
 				}
 
 				$( '#lobby' ).show();
