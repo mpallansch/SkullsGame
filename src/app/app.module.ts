@@ -7,18 +7,18 @@ import { HomeComponent } from './home/home.component';
 import { LobbyComponent } from './lobby/lobby.component';
 import { GameComponent } from './game/game.component';
 
-@NgModule({
-  declarations: [
-    AppComponent,
-    LoginComponent,
-    HomeComponent,
-    LobbyComponent,
-    GameComponent
-  ],
-  imports: [
-    BrowserModule
-  ],
-  providers: [],
-  bootstrap: [AppComponent]
-})
+@NgModule( {
+	declarations: [
+		AppComponent,
+		LoginComponent,
+		HomeComponent,
+		LobbyComponent,
+		GameComponent
+	],
+	imports: [
+		BrowserModule
+	],
+	providers: [],
+	bootstrap: [ AppComponent ]
+} )
 export class AppModule { }
