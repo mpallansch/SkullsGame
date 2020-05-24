@@ -5,6 +5,48 @@ import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import SSE from 'express-sse';
 
+import { Player } from './shared/player';
+import { Chair } from './shared/chair';
+import { GameState } from './shared/game-state';
+import * as PHASES from './shared/phases';
+
+class GameServer {
+	static Players = new Array<Player>();
+	static Games = new Array<GameState>();
+
+	static setupGame( numberOfPlayers: number ): GameState {
+		let newGame = new GameState( numberOfPlayers );
+		// TODO:  find better way to persist games on server to handle server restarts, etc.
+		this.Games.push( newGame );
+		return newGame;
+	}
+
+	static startGame( game: GameState ): boolean {
+		let result: boolean = false;
+		// TODO:  concurrency issues?
+		let theGame = this.Games.filter( ( item: GameState ) => { item.id === game.id } );
+		if ( theGame && 1 === theGame.length ) {
+			theGame[ 0 ].started = true;
+			theGame[ 0 ].phase = PHASES.STATE_WAITING;
+			result = true;
+		}
+		return result;
+	}
+
+	static endGame( game: GameState ): boolean {
+		let result: boolean = false;
+		// TODO:  concurrency issues?
+		this.Games.forEach( ( item: GameState, index: number ) => {
+			if ( item.id === game.id ) {
+				this.Games.splice( index, 1 );
+				result = true;
+			}
+		} );
+		return result;
+	}
+
+}
+
 const app = express();
 const sse = new SSE();
 
@@ -14,60 +56,6 @@ app.use( bodyParser.json() );
 app.use( bodyParser.urlencoded( { extended: true } ) );
 app.use( cookieParser() );
 app.use( session( { secret: "skullsskullskulls" } ) );
-
-let STATE_PREBIDDING = 0;
-let STATE_BIDDING = 1;
-let STATE_FULFILLING = 2;
-let STATE_FINISHED = 3;
-let STATE_WAITING = 4;
-
-
-let Users = [
-	{
-		id: 'Matt',
-		password: 'kearneykearneykearney'
-	},
-	{
-		id: 'Joe',
-		password: 'daviddaviddavid'
-	},
-	{
-		id: 'Jenn',
-		password: 'cullencullencullen'
-	},
-	{
-		id: 'Mom',
-		password: 'morelandmorelandmoreland'
-	},
-	{
-		id: 'Cass',
-		password: 'antonyantonyantony'
-	},
-	{
-		id: 'Ashley',
-		password: 'cowncowncown'
-	},
-	{
-		id: 'Danni',
-		password: 'reneereneerenee'
-	}
-];
-
-let GameState = {
-	started: false,
-	chairs: [] = [ undefined, undefined, undefined, undefined, undefined ],
-	numPlayers: 0,
-	turn: 0,
-	cardsPlayed: 0,
-	numRevealed: 0,
-	numPasses: 0,
-	round: 1,
-	originalTurn: 0,
-	lastTurn: '',
-	highestBid: 0,
-	highestBidder: 0,
-	phase: STATE_PREBIDDING
-};
 
 function checkSignIn( req: Request, res: Response, next: CallableFunction ) {
 	if ( req.session.user ) {
@@ -79,255 +67,188 @@ function checkSignIn( req: Request, res: Response, next: CallableFunction ) {
 	}
 }
 
-function nextTurn() {
-	console.log( 'originalTurn', GameState.originalTurn );
-	GameState.turn++;
-	if ( GameState.turn > GameState.numPlayers - 1 ) {
-		GameState.turn = 0;
+app.get( '/create', function( req: Request, res: Response ) {
+	console.log( 'create', req );
+	let numberOfPlayers: string = req.query.players as string;
+	let newGame: GameState = GameServer.setupGame( parseInt( numberOfPlayers ) );
+	if ( newGame ) {
+		console.log( 'create', newGame );
+		sse.send( newGame );
+		res.send( 'OK' );
+	} else {
+		res.send( 'FAILED' );
 	}
-	console.log( 'GameState.turn before', GameState.turn );
-	while ( GameState.turn !== GameState.originalTurn &&
-		( !GameState.chairs[ GameState.turn ] ||
-			GameState.chairs[ GameState.turn ].defeated ||
-			GameState.chairs[ GameState.turn ].passed ) ) {
-		GameState.turn++;
-		if ( GameState.turn > GameState.numPlayers - 1 ) {
-			GameState.turn = 0;
-		}
+} );
+
+app.get( '/start', function( req: Request, res: Response ) {
+	let gameId: string = req.query.id as string;
+	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	if ( games && 1 === games.length ) {
+		let game: GameState = games[ 0 ];
+		game.start();
+		console.log( 'start', game );
+		sse.send( game );
+		res.send( 'OK' );
+	} else {
+		res.send( 'FAILED' );
 	}
-	console.log( 'GameState.turn after', GameState.turn );
-
-	console.log( 'GameState.turn after', GameState.turn );
-	console.log( 'GameState.highestBidder', GameState.highestBidder );
-	console.log( 'GameState.numPasses', GameState.numPasses );
-
-	if ( 'undefined' === typeof GameState.highestBidder && GameState.numPasses === GameState.numPlayers - 1 ) {
-		GameState.phase = STATE_BIDDING;
-	} else if ( GameState.turn === GameState.originalTurn &&
-		GameState.turn === GameState.highestBidder && GameState.numPasses === ( GameState.numPlayers - 1 ) ) {
-		GameState.phase = STATE_FULFILLING;
-		GameState.turn = GameState.highestBidder;
-	}
-}
-
-function nextRound() {
-	GameState.round++;
-	GameState.phase = STATE_PREBIDDING;
-	GameState.cardsPlayed = 0;
-	GameState.numRevealed = 0;
-	GameState.numPlayers = 0;
-	GameState.numPasses = 0;
-	GameState.lastTurn = '';
-	GameState.originalTurn++;
-	if ( GameState.originalTurn > GameState.numPlayers - 1 ) {
-		GameState.originalTurn = 0;
-	}
-	delete GameState.highestBid;
-	delete GameState.highestBidder;
-	GameState.chairs.forEach( function( chairObj ) {
-		if ( chairObj ) {
-			chairObj.numPlayed = 0;
-			chairObj.numRevealed = 0;
-			chairObj.skullIndex = -1;
-			chairObj.passed = false;
-			GameState.numPlayers++;
-		}
-	} );
-}
-
-app.get( '/start', function( req, res ) {
-	GameState.started = true;
-	GameState.round = 1,
-		GameState.phase = STATE_PREBIDDING;
-	GameState.turn = 0;
-	GameState.cardsPlayed = 0;
-	GameState.numRevealed = 0;
-	GameState.numPasses = 0;
-	GameState.originalTurn = 0;
-	GameState.chairs.forEach( function( chairObj ) {
-		if ( chairObj ) {
-			chairObj.numCards = 4;
-			chairObj.numPlayed = 0;
-			chairObj.numRevealed = 0;
-			chairObj.hasSkull = true;
-			chairObj.skullIndex = -1;
-			chairObj.numWins = 0;
-		}
-	} );
-	GameState.lastTurn = '';
-	sse.send( GameState );
-	res.send( 'OK' );
 } );
 
 app.get( '/play-card', function( req: Request, res: Response ) {
-	if ( req.query.skull === 'true' ) {
-		GameState.chairs[ GameState.turn ].skullIndex = GameState.chairs[ GameState.turn ].numPlayed;
+	let gameId: string = req.query.id as string;
+	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	if ( games && 1 === games.length ) {
+		let game: GameState = games[ 0 ];
+		let card: string = req.query.skull === 'true' ? 'skull' : 'rose';
+		if ( game.playCard( req.session.user.id, card ) ) {
+			sse.send( game );
+			res.send( 'OK' );
+		} else {
+			sse.send( game );
+			res.send( 'FAILED' );
+		}
 	}
-	GameState.chairs[ GameState.turn ].numPlayed++;
-	GameState.cardsPlayed++;
-	if ( GameState.cardsPlayed === GameState.numPlayers * 4 ) {
-		GameState.phase = STATE_BIDDING;
-	}
-
-	GameState.lastTurn = GameState.chairs[ GameState.turn ].name + ' played a card';
-
-	nextTurn();
-
-	sse.send( GameState );
-	res.send( 'OK' );
 } );
 
 app.get( '/play-bid', function( req: Request, res: Response ) {
-	GameState.highestBid = parseInt( req.params[ 'value' ]);
-	GameState.highestBidder = GameState.turn;
-	if ( GameState.phase === STATE_PREBIDDING ) {
-		GameState.phase = STATE_BIDDING;
+	let gameId: string = req.query.id as string;
+	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	if ( games && 1 === games.length ) {
+		let game: GameState = games[ 0 ];
+		let bid: number = parseInt( req.query.value as string );
+		if ( game.bid( req.session.user.id, bid ) ) {
+			sse.send( game );
+			res.send( 'OK' );
+		} else {
+			sse.send( game );
+			res.send( 'FAILED' );
+		}
 	}
-	if ( GameState.highestBid === GameState.cardsPlayed ) {
-		GameState.phase = STATE_FULFILLING
-		GameState.turn = GameState.highestBidder;
-
-		sse.send( GameState );
-		res.send( 'OK' );
-
-		return;
-	}
-
-	GameState.lastTurn = GameState.chairs[ GameState.turn ].name + ' bid ' + GameState.highestBid;
-
-	nextTurn();
-
-	sse.send( GameState );
-	res.send( 'OK' );
 } );
 
 app.get( '/reveal-card', function( req, res ) {
-	let chairIndex = parseInt( req.params[ 'chair' ] );
-	if ( GameState.chairs[ chairIndex ].skullIndex === ( GameState.chairs[ chairIndex ].numPlayed - GameState.chairs[ chairIndex ].numRevealed - 1 ) ) {
-		GameState.chairs[ chairIndex ].numRevealed++;
-		GameState.numRevealed++;
+	let gameId: string = req.query.id as string;
+	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	if ( games && 1 === games.length ) {
+		let game = games[ 0 ];
+		let chairIndex = parseInt( req.query.chair as string );
+		if ( game.chairs[ chairIndex ].player.skullIndex === ( game.chairs[ chairIndex ].player.numPlayed - game.chairs[ chairIndex ].player.numRevealed - 1 ) ) {
+			game.chairs[ chairIndex ].player.numRevealed++;
+			game.numRevealed++;
 
-		GameState.phase = STATE_WAITING;
+			game.phase = PHASES.STATE_WAITING;
 
-		GameState.lastTurn = GameState.chairs[ GameState.turn ].name + ' revealed a skull';
+			game.lastTurn = game.chairs[ game.turn ].player.displayName + ' revealed a skull';
 
-		setTimeout( function() {
-			if ( GameState.chairs[ GameState.highestBidder ].hasSkull ) {
-				if ( Math.random() < ( 1 / GameState.chairs[ GameState.highestBidder ].numCards ) ) {
-					GameState.chairs[ GameState.highestBidder ].hasSkull = false;
+			setTimeout( function() {
+				if ( game.chairs[ game.highestBidder ].player.hasSkull ) {
+					if ( Math.random() < ( 1 / game.chairs[ game.highestBidder ].player.numCards ) ) {
+						game.chairs[ game.highestBidder ].player.hasSkull = false;
+					}
+				}
+				game.chairs[ game.highestBidder ].player.numCards--;
+				if ( game.chairs[ game.highestBidder ].player.numCards === 0 ) {
+					game.chairs[ game.highestBidder ].player.defeated = true;
+					game.numPlayers--;
+					game.nextTurn();
+				}
+
+				game.nextRound();
+
+				sse.send( GameState );
+			}, 5000 );
+		} else {
+			game.chairs[ chairIndex ].player.numRevealed++;
+			game.numRevealed++;
+
+			game.lastTurn = game.chairs[ game.turn ].player.displayName + ' revealed a flower';
+
+			if ( game.numRevealed === game.highestBid ) {
+				game.chairs[ game.highestBidder ].player.numWins++;
+				if ( game.chairs[ game.highestBidder ].player.numWins === 2 ) {
+					game.phase = PHASES.STATE_WAITING;
+					setTimeout( function() {
+						game.phase = PHASES.STATE_FINISHED;
+						game.started = false;
+						sse.send( GameState );
+					}, 5000 );
+				} else {
+					game.phase = PHASES.STATE_WAITING;
+					setTimeout( function() {
+						game.nextRound();
+						sse.send( GameState );
+					}, 5000 );
 				}
 			}
-			GameState.chairs[ GameState.highestBidder ].numCards--;
-			if ( GameState.chairs[ GameState.highestBidder ].numCards === 0 ) {
-				GameState.chairs[ GameState.highestBidder ].defeated = true;
-				GameState.numPlayers--;
-				nextTurn();
-			}
-
-			nextRound();
-
-			sse.send( GameState );
-		}, 5000 );
-	} else {
-		GameState.chairs[ chairIndex ].numRevealed++;
-		GameState.numRevealed++;
-
-		GameState.lastTurn = GameState.chairs[ GameState.turn ].name + ' revealed a flower';
-
-		if ( GameState.numRevealed === GameState.highestBid ) {
-			GameState.chairs[ GameState.highestBidder ].numWins++;
-			if ( GameState.chairs[ GameState.highestBidder ].numWins === 2 ) {
-				GameState.phase = STATE_WAITING;
-				setTimeout( function() {
-					GameState.phase = STATE_FINISHED;
-					GameState.started = false;
-					sse.send( GameState );
-				}, 5000 );
-			} else {
-				GameState.phase = STATE_WAITING;
-				setTimeout( function() {
-					nextRound();
-
-					sse.send( GameState );
-				}, 5000 );
-			}
 		}
-	}
 
-	sse.send( GameState );
-	res.send( 'OK' );
+		sse.send( GameState );
+		res.send( 'OK' );
+	}
 } );
 
 app.get( '/pass', function( req, res ) {
-	GameState.chairs[ GameState.turn ].passed = true;
-	GameState.numPasses++;
-	GameState.lastTurn = GameState.chairs[ GameState.turn ].name + ' passed';
-
-	nextTurn();
-
-	sse.send( GameState );
-	res.send( 'OK' );
-} );
-
-app.get( '/game-events', function( req, res, next ) {
-	setTimeout( function() {
-		sse.send( GameState );
-	}, 500 );
-	next();
-}, sse.init );
-
-app.get( '/game', checkSignIn, function( req, res ) {
-	renderGame( res, { id: req.session.user.id, position: req.session.user.position } )
-} );
-
-app.get( '/', checkSignIn, function( req, res ) {
-	renderGame( res, { id: req.session.user.id, position: req.session.user.position } )
-} );
-
-app.get( '/login', function( req, res ) {
-	renderLogin( res, { message: '' } );
-} );
-
-app.post( '/login', function( req, res ) {
-	if ( !req.body.id || !req.body.password ) {
-		renderLogin( res, { message: 'Please enter both id and password' } );
-	} else {
-		for ( let i = 0; i < Users.length; i++ ) {
-			if ( Users[ i ].id === req.body.id && Users[ i ].password === req.body.password ) {
-				req.session.user = Users[ i ];
-				for ( let i = 0; i < GameState.chairs.length; i++ ) {
-					let chair = GameState.chairs[ i ];
-					if ( 'undefined' === typeof chair ) {
-						req.session.user.position = i;
-						GameState.chairs[ i ] = { name: req.session.user.id, numCards: 4, numPlayed: 0, numRevealed: 0, hasSkull: true, skullIndex: -1, numWins: 0 };
-						break;
-					}
-				};
-				GameState.numPlayers++;
-				sse.send( GameState );
-				res.redirect( '/game' );
-				console.log( 'login GameState', GameState );
-				return;
-			}
+	let gameId: string = req.query.id as string;
+	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	if ( games && 1 === games.length ) {
+		let game = games[ 0 ];
+		if ( game.pass( req.session.user.id ) ) {
+			sse.send( game );
+			res.send( 'OK' );
+		} else {
+			sse.send( game );
+			res.send( 'FAILED' );
 		}
-		renderLogin( res, { message: 'Invalid credentials!' } );
 	}
 } );
 
-app.get( '/logout', function( req, res ) {
-	console.log( 'logout', req );
-	GameState.chairs[ req.session.user.position ] = undefined;
-	GameState.numPlayers--;
+app.get( '/game-events', function( req: Request, res: Response, next: CallableFunction ) {
+	// setTimeout( function() {
+	// 	sse.send( GameState );
+	// }, 500 );
+	// next();
+}, sse.init );
 
-	req.session.destroy( function() {
-		console.log( "user logged out." )
-		res.redirect( '/login' );
-		if ( GameState.numPlayers < 3 ) {
-			GameState.phase = STATE_WAITING;
-		}
-		sse.send( GameState );
-		console.log( 'GameState', GameState );
-	} );
+app.post( '/login', function( req, res ) {
+	// if ( !req.body.id || !req.body.password ) {
+	// 	renderLogin( res, { message: 'Please enter both id and password' } );
+	// } else {
+	// 	for ( let i = 0; i < Users.length; i++ ) {
+	// 		if ( Users[ i ].id === req.body.id && Users[ i ].password === req.body.password ) {
+	// 			req.session.user = Users[ i ];
+	// 			for ( let i = 0; i < game.chairs.length; i++ ) {
+	// 				let chair = game.chairs[ i ];
+	// 				if ( 'undefined' === typeof chair ) {
+	// 					req.session.user.position = i;
+	// 					game.chairs[ i ] = { name: req.session.user.id, numCards: 4, numPlayed: 0, numRevealed: 0, hasSkull: true, skullIndex: -1, numWins: 0 };
+	// 					break;
+	// 				}
+	// 			};
+	// 			game.numPlayers++;
+	// 			sse.send( GameState );
+	// 			res.redirect( '/game' );
+	// 			console.log( 'login GameState', GameState );
+	// 			return;
+	// 		}
+	// 	}
+	// 	renderLogin( res, { message: 'Invalid credentials!' } );
+	// }
+} );
+
+app.get( '/logout', function( req, res ) {
+	// console.log( 'logout', req );
+	// game.chairs[ req.session.user.position ] = undefined;
+	// game.numPlayers--;
+
+	// req.session.destroy( function() {
+	// 	console.log( "user logged out." )
+	// 	res.redirect( '/login' );
+	// 	if ( game.numPlayers < 3 ) {
+	// 		game.phase = STATE_WAITING;
+	// 	}
+	// 	sse.send( GameState );
+	// 	console.log( 'GameState', GameState );
+	// } );
 } );
 
 app.get( '/client.js', function( req, res ) {
@@ -362,7 +283,7 @@ function renderLogin( res, params ) {
 			</head>
 			<body>
 				<h1>SKULL</h1>
-				<p id="message">${params.message }</p>
+				<p id="message">${params.message}</p>
 				<form action="/login" method="POST" enctype="multipart/form-data">
 					<label for="id">Username: </label><input id="id" type="text" name="id" /><br/>
 					<label for="password">Password: </label><input id="password" type="password" name="password" /><br/>
@@ -383,7 +304,7 @@ function renderGame( res, params ) {
 			<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 		</head>
 		<body>
-			<p id="user">${params.id }</p>
+			<p id="user">${params.id}</p>
 			<form id="logout-form" action="/logout" method="GET">
 				<input id="logout" type="submit" value="Logout"/>
 			</form>
@@ -406,8 +327,8 @@ function renderGame( res, params ) {
 			</div>
 
 			<script>
-				var id = '${params.id }';
-				var position = ${params.position };
+				var id = '${params.id}';
+				var position = ${params.position};
 			</script>
 			<script src="/client.js"></script>
 
@@ -417,4 +338,4 @@ function renderGame( res, params ) {
 }
 
 app.listen( PORT );
-console.log( `Listening on port ${ PORT }...` );
+console.log( `Listening on port ${PORT}...` );
