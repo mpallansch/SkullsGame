@@ -6,6 +6,7 @@ export class GameState {
 	protected _id: string;
 	protected _started: boolean;
 	protected _chairs: Array<Chair>;
+	protected _maxNumPlayers: number;
 	protected _numPlayers: number;
 	protected _turn: number;
 	protected _cardsPlayed: number;
@@ -28,11 +29,12 @@ export class GameState {
 		return result;
 	}
 
-	constructor( numberOfPlayers?: number ) {
+	constructor( maxNumberOfPlayers?: number ) {
 		this._id = this.makeId( 7 );  // Generate a randome ID for the game here...
 		this._started = false;
-		this._chairs = new Array<Chair>( numberOfPlayers );
-		this._numPlayers = numberOfPlayers ? numberOfPlayers : 4;
+		this._chairs = new Array<Chair>( maxNumberOfPlayers ? maxNumberOfPlayers : 4 );
+		this._maxNumPlayers = maxNumberOfPlayers ? maxNumberOfPlayers : 4;
+		this._numPlayers = 0;
 		this._turn = 0;
 		this._cardsPlayed = 0;
 		this._numRevealed = 0;
@@ -62,6 +64,9 @@ export class GameState {
 	}
 	set numPlayers( value: number ) {
 		this._numPlayers = value;
+	}
+	get maxNumPlayers(): number {
+		return this._maxNumPlayers;
 	}
 	get turn(): number {
 		return this._turn;

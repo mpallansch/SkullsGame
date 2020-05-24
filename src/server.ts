@@ -24,7 +24,7 @@ class GameServer {
 	static startGame( game: GameState ): boolean {
 		let result: boolean = false;
 		// TODO:  concurrency issues?
-		let theGame = this.Games.filter( ( item: GameState ) => { item.id === game.id } );
+		let theGame = this.Games.filter( ( item: GameState ) => item.id === game.id );
 		if ( theGame && 1 === theGame.length ) {
 			theGame[ 0 ].started = true;
 			theGame[ 0 ].phase = PHASES.STATE_WAITING;
@@ -57,14 +57,21 @@ app.use( bodyParser.urlencoded( { extended: true } ) );
 app.use( cookieParser() );
 app.use( session( { secret: "skullsskullskulls" } ) );
 
-function checkSignIn( req: Request, res: Response, next: CallableFunction ) {
-	if ( req.session.user ) {
-		next();     //If session exists, proceed to page
+function checkSignIn( req: Request ): Player {
+	let player: Player;
+	let playerInSession: Player = req.session.user as Player;
+	if ( ! playerInSession ) {
+		let newPlayer = new Player( req.session.id );
+		if ( newPlayer.logon( req.body.id, req.body.password ) ) {
+			player = newPlayer;
+		} else {
+			player.message = 'Logon failed!';
+		}
 	} else {
-		//let err = new Error( 'Not logged in!' );
 		console.log( 'Not logged in!' );
-		next( 'Not logged in!' );  //Error, trying to access unauthorized page!
+		player = new Player( req.session.id );
 	}
+	return player;
 }
 
 app.get( '/create', function( req: Request, res: Response ) {
@@ -73,8 +80,8 @@ app.get( '/create', function( req: Request, res: Response ) {
 	let newGame: GameState = GameServer.setupGame( parseInt( numberOfPlayers ) );
 	if ( newGame ) {
 		console.log( 'create', newGame );
-		sse.send( newGame );
-		res.send( 'OK' );
+		sse.send( { status: 'OK', game: newGame } );
+		res.send( { status: 'OK' } );
 	} else {
 		res.send( 'FAILED' );
 	}
@@ -82,7 +89,10 @@ app.get( '/create', function( req: Request, res: Response ) {
 
 app.get( '/start', function( req: Request, res: Response ) {
 	let gameId: string = req.query.id as string;
-	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	console.log( 'start', gameId );
+	console.log( 'start GamerServer.games', GameServer.Games );
+	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
+	console.log( 'start games', games );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
 		game.start();
@@ -96,7 +106,7 @@ app.get( '/start', function( req: Request, res: Response ) {
 
 app.get( '/play-card', function( req: Request, res: Response ) {
 	let gameId: string = req.query.id as string;
-	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
 		let card: string = req.query.skull === 'true' ? 'skull' : 'rose';
@@ -112,7 +122,7 @@ app.get( '/play-card', function( req: Request, res: Response ) {
 
 app.get( '/play-bid', function( req: Request, res: Response ) {
 	let gameId: string = req.query.id as string;
-	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
 		let bid: number = parseInt( req.query.value as string );
@@ -128,7 +138,7 @@ app.get( '/play-bid', function( req: Request, res: Response ) {
 
 app.get( '/reveal-card', function( req, res ) {
 	let gameId: string = req.query.id as string;
-	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game = games[ 0 ];
 		let chairIndex = parseInt( req.query.chair as string );
@@ -189,7 +199,7 @@ app.get( '/reveal-card', function( req, res ) {
 
 app.get( '/pass', function( req, res ) {
 	let gameId: string = req.query.id as string;
-	let games: GameState[] = GameServer.Games.filter( item => { item.id === gameId } );
+	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game = games[ 0 ];
 		if ( game.pass( req.session.user.id ) ) {
@@ -210,29 +220,43 @@ app.get( '/game-events', function( req: Request, res: Response, next: CallableFu
 }, sse.init );
 
 app.post( '/login', function( req, res ) {
-	// if ( !req.body.id || !req.body.password ) {
-	// 	renderLogin( res, { message: 'Please enter both id and password' } );
-	// } else {
-	// 	for ( let i = 0; i < Users.length; i++ ) {
-	// 		if ( Users[ i ].id === req.body.id && Users[ i ].password === req.body.password ) {
-	// 			req.session.user = Users[ i ];
-	// 			for ( let i = 0; i < game.chairs.length; i++ ) {
-	// 				let chair = game.chairs[ i ];
-	// 				if ( 'undefined' === typeof chair ) {
-	// 					req.session.user.position = i;
-	// 					game.chairs[ i ] = { name: req.session.user.id, numCards: 4, numPlayed: 0, numRevealed: 0, hasSkull: true, skullIndex: -1, numWins: 0 };
-	// 					break;
-	// 				}
-	// 			};
-	// 			game.numPlayers++;
-	// 			sse.send( GameState );
-	// 			res.redirect( '/game' );
-	// 			console.log( 'login GameState', GameState );
-	// 			return;
-	// 		}
-	// 	}
-	// 	renderLogin( res, { message: 'Invalid credentials!' } );
-	// }
+	let newPlayer: Player;
+	if ( !req.body.id || !req.body.password ) {
+		newPlayer = new Player( req.session.id );
+		newPlayer.message = 'Please enter both id and password';
+		res.write( JSON.stringify( { status: 'OK', player: newPlayer } ) );
+	} else {
+		newPlayer = this.checkSignIn( req.body.id, req.body.password );
+		if ( newPlayer.authenticated ) {
+			let findPlayer: Player[] = GameServer.Players.filter( ( player: Player ) => player.username === newPlayer.username );
+			if ( findPlayer || 0 === findPlayer.length ) {
+				newPlayer = new Player( req.session.id );
+				GameServer.Players.push( newPlayer );
+			} else {
+				newPlayer = findPlayer[ 0 ];
+			}
+			res.write( JSON.stringify( { status: 'OK', player: newPlayer } ) );
+		}
+		// for ( let i = 0; i < Users.length; i++ ) {
+		// 	if ( Users[ i ].id === req.body.id && Users[ i ].password === req.body.password ) {
+		// 		req.session.user = Users[ i ];
+		// 		for ( let i = 0; i < game.chairs.length; i++ ) {
+		// 			let chair = game.chairs[ i ];
+		// 			if ( 'undefined' === typeof chair ) {
+		// 				req.session.user.position = i;
+		// 				game.chairs[ i ] = { name: req.session.user.id, numCards: 4, numPlayed: 0, numRevealed: 0, hasSkull: true, skullIndex: -1, numWins: 0 };
+		// 				break;
+		// 			}
+		// 		};
+		// 		game.numPlayers++;
+		// 		sse.send( GameState );
+		// 		res.redirect( '/game' );
+		// 		console.log( 'login GameState', GameState );
+		// 		return;
+		// 	}
+		// }
+		//renderLogin( res, { message: 'Invalid credentials!' } );
+	}
 } );
 
 app.get( '/logout', function( req, res ) {
@@ -251,27 +275,37 @@ app.get( '/logout', function( req, res ) {
 	// } );
 } );
 
-app.get( '/client.js', function( req, res ) {
-	res.sendFile( path.join( __dirname + '/client.js' ) );
-} );
-
-app.get( '/client.css', function( req, res ) {
-	res.sendFile( path.join( __dirname + '/client.css' ) );
-} );
-
-app.use( '/game', function( err, req, res, next ) {
-	console.log( err );
-	//User should be authenticated! Redirect them to log in.
-	res.redirect( '/login' );
+app.get( '/join', function( req, res ) {
+	console.log( 'join', req );
+	let player: Player = req.session.player as Player;
+	let gameId: string = req.query.id as string;
+	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
+	let game: GameState;
+	if ( games && 1 === games.length ) {
+		game = games[ 0 ];
+	} else {
+		game = new GameState( 4 );
+	}
+	let status = 'OK'
+	if ( game.numPlayers < game.maxNumPlayers ) {
+		game.addPlayer( player, game.numPlayers );
+	} else {
+		player.message = 'Game is full!';
+		status = 'ERROR'
+	}
+	sse.send( { status: status, player: player, game: game } );
+	console.log( 'join GameState', game );
 } );
 
 app.use( '/', function( err, req, res, next ) {
 	console.log( err );
 	//User should be authenticated! Redirect them to log in.
-	res.redirect( '/login' );
+	res.redirect( '/public/index.html' );
 } );
 
 app.use( '/images', express.static( __dirname + '/public/images' ) );
+app.use( '/js', express.static( __dirname + '/public/js' ) );
+app.use( '/css', express.static( __dirname + '/public/css' ) );
 
 function renderLogin( res, params ) {
 	res.send(

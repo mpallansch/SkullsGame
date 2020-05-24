@@ -1,5 +1,7 @@
 export class Player {
-	public displayName: string;
+	protected _sessionId: string;
+	protected _displayName: string;
+	protected _emailAddress: string;
 	protected _username: string;
 	protected _password: String;
 	protected _authenticated: boolean = false;
@@ -11,9 +13,12 @@ export class Player {
 	protected _skullIndex:number;
 	protected _hasSkull: boolean;
 	protected _numWins: number;
+	protected _message: string;
 
-	constructor( displayName?: string ) {
-		this.displayName = displayName;
+	constructor( sessionId: string ) {
+		this._sessionId = sessionId;
+		this._displayName = '';
+		this._emailAddress = '';
 		this._authenticated = false;
 		this._numCards = 4;
 		this._numPlayed = 0;
@@ -21,8 +26,24 @@ export class Player {
 		this._skullIndex = -1;
 		this._hasSkull = true;
 		this._numWins = 0;
+		this._message = '';
 	}
 
+	get sessionId(): string {
+		return this._sessionId;
+	}
+	get displayName(): string {
+		return this._displayName;
+	}
+	set displayName( value: string ) {
+		this._displayName = value;
+	}
+	get username(): string {
+		return this._username;
+	}
+	get emailAddress(): string {
+		return this._emailAddress;
+	}
 	get numCards(): number {
 		return this._numCards;
 	}
@@ -71,19 +92,33 @@ export class Player {
 	set hasSkull( value: boolean ) {
 		this._hasSkull = value;
 	}
+	get message(): string {
+		return this._message;
+	}
+	set message( value: string ) {
+		this._message = value;
+	}
+	get autenticated(): boolean {
+		return this._authenticated;
+	}
 
-	public register( username: string, password: string, displayName?: string ): boolean {
+	public register( username: string, password: string, displayName?: string, emailAddress?: string ): boolean {
 		// TODO:  persist player info to database
-		this.displayName = displayName;
+		this._displayName = displayName;
+		this._emailAddress = emailAddress;
+		this._username = username;
+		this._authenticated = false;
 		return true;
 	}
 
 	public logon( username: string, password: string ): boolean {
 		// TODO:  database lookup and username/password validation
+		this._username = username;
+		this._authenticated = true;
 		return true;
 	}
 
-	public isAuthenticated(): boolean {
+	public get authenticated(): boolean {
 		return this._authenticated;
 	}
 
@@ -96,6 +131,7 @@ export class Player {
 		this._passed = false;
 		this._defeated = false;
 		this._numWins = 0;
+		this._message = '';
 	}
 
 	public nextRound() {
@@ -106,6 +142,7 @@ export class Player {
 		this._hasSkull = true;
 		this._passed = false;
 		this._defeated = false;
+		this._message = '';
 	}
 
 }

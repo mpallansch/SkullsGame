@@ -13,7 +13,7 @@ export class Chair {
 	}
 
 	public set player( value: Player ) {
-		if ( value.isAuthenticated ) {
+		if ( value.authenticated ) {
 			this._player = value;
 		}
 	}
