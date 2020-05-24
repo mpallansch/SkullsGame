@@ -114,7 +114,13 @@ export class Player {
 	public logon( username: string, password: string ): boolean {
 		// TODO:  database lookup and username/password validation
 		this._username = username;
-		this._authenticated = true;
+		this._authenticated = false;
+		return true;
+	}
+
+	public logout(): boolean {
+		this._sessionId = '';
+		this._authenticated = false;
 		return true;
 	}
 

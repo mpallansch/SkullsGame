@@ -96,10 +96,32 @@ app.get( '/start', function( req: Request, res: Response ) {
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
 		game.start();
-		console.log( 'start', game );
 		sse.send( { status: 'OK', player: player, game: game } );
 		res.send( { status: 'OK', player: player, game: game } );
 	} else {
+		sse.send( { status: 'FAILED', player: player, game: undefined } );
+		res.send( { status: 'FAILED', player: player, game: undefined } );
+	}
+} );
+
+app.get( '/end', function( req: Request, res: Response ) {
+	let player: Player = checkSignIn( req );
+	let gameId: string = req.query.id as string;
+	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
+	if ( games && 1 === games.length ) {
+		let game: GameState = games[ 0 ];
+		console.log( 'GameSever.Games before', GameServer.Games );
+		if ( GameServer.endGame( game ) ) {
+			console.log( 'GameSever.Games after', GameServer.Games );
+			sse.send( { status: 'OK', player: player, game: undefined } );
+			res.send( { status: 'OK', player: player, game: undefined } );
+		} else {
+			player.message = 'Failed to end game!';
+			sse.send( { status: 'FAILED', player: player, game: undefined } );
+			res.send( { status: 'FAILED', player: player, game: undefined } );
+		}
+	} else {
+		player.message = 'Game not found!';
 		sse.send( { status: 'FAILED', player: player, game: undefined } );
 		res.send( { status: 'FAILED', player: player, game: undefined } );
 	}
@@ -240,32 +262,22 @@ app.post( '/login', function( req, res ) {
 			} else {
 				newPlayer = findPlayer[ 0 ];
 			}
-			res.write( JSON.stringify( { status: 'OK', player: newPlayer } ) );
+			sse.send( { status: 'OK', player: newPlayer, game: undefined } );
+			res.send( { status: 'OK', player: newPlayer, game: undefined } );
+		} else {
+			sse.send( { status: 'FAILED', player: newPlayer, game: undefined } );
+			res.send( { status: 'FAILED', player: newPlayer, game: undefined } );
 		}
-		// for ( let i = 0; i < Users.length; i++ ) {
-		// 	if ( Users[ i ].id === req.body.id && Users[ i ].password === req.body.password ) {
-		// 		req.session.user = Users[ i ];
-		// 		for ( let i = 0; i < game.chairs.length; i++ ) {
-		// 			let chair = game.chairs[ i ];
-		// 			if ( 'undefined' === typeof chair ) {
-		// 				req.session.user.position = i;
-		// 				game.chairs[ i ] = { name: req.session.user.id, numCards: 4, numPlayed: 0, numRevealed: 0, hasSkull: true, skullIndex: -1, numWins: 0 };
-		// 				break;
-		// 			}
-		// 		};
-		// 		game.numPlayers++;
-		// 		sse.send( GameState );
-		// 		res.redirect( '/game' );
-		// 		console.log( 'login GameState', GameState );
-		// 		return;
-		// 	}
-		// }
-		//renderLogin( res, { message: 'Invalid credentials!' } );
 	}
 } );
 
 app.get( '/logout', function( req, res ) {
-	// console.log( 'logout', req );
+	console.log( 'logout', req );
+	// TODO:  Need to make sure the user is removed for any ongoing games.
+	let player: Player = checkSignIn( req );
+	if ( player ) {
+		player.logout();
+	}
 	// game.chairs[ req.session.user.position ] = undefined;
 	// game.numPlayers--;
 
@@ -299,13 +311,14 @@ app.get( '/join', function( req, res ) {
 		status = 'ERROR'
 	}
 	sse.send( { status: status, player: player, game: game } );
+	res.send( { status: status, player: player, game: game } );
 	console.log( 'join GameState', game );
 } );
 
-app.use( '/', function( err, req, res, next ) {
-	console.log( err );
-	//User should be authenticated! Redirect them to log in.
-	res.redirect( '/public/index.html' );
+app.get( '/', function( req: Request, res: Response ) {
+	let player: Player = checkSignIn( req );
+	sse.send( { status: 'OK', player: player, game: undefined } );
+	res.send( { status: 'OK', player: player, game: undefined } );
 } );
 
 app.use( '/images', express.static( __dirname + '/public/images' ) );
