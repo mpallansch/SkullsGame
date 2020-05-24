@@ -137,10 +137,11 @@ export class GameState {
 		this._numRevealed = 0;
 		this._numPasses = 0;
 		this._originalTurn = 0;
+		let self = this;
 		this._chairs.forEach( function( chair ) {
 			if ( chair && chair.player ) {
 				chair.player.startRound();
-				this._numPlayers++;
+				self._numPlayers++;
 			}
 		} );
 		this._lastTurn = '';
@@ -160,10 +161,11 @@ export class GameState {
 		}
 		delete this._highestBid;
 		delete this._highestBidder;
+		let self = this;
 		this._chairs.forEach( function( chair ) {
 			if ( chair && chair.player ) {
 				chair.player.nextRound();
-				this._numPlayers++;
+				self._numPlayers++;
 			}
 		} );
 	}

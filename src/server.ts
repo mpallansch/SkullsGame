@@ -76,67 +76,71 @@ function checkSignIn( req: Request ): Player {
 
 app.get( '/create', function( req: Request, res: Response ) {
 	console.log( 'create', req );
+	let player: Player = checkSignIn( req );
 	let numberOfPlayers: string = req.query.players as string;
 	let newGame: GameState = GameServer.setupGame( parseInt( numberOfPlayers ) );
 	if ( newGame ) {
-		console.log( 'create', newGame );
-		sse.send( { status: 'OK', game: newGame } );
-		res.send( { status: 'OK' } );
+		newGame.addPlayer( player, 0 );
+		sse.send( { status: 'OK', player: player, game: newGame } );
+		res.send( { status: 'OK', player: player, game: newGame } );
 	} else {
-		res.send( 'FAILED' );
+		sse.send( { status: 'FAILED', player: player, game: undefined } );
+		res.send( { status: 'FAILED', player: player, game: undefined } );
 	}
 } );
 
 app.get( '/start', function( req: Request, res: Response ) {
+	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
-	console.log( 'start', gameId );
-	console.log( 'start GamerServer.games', GameServer.Games );
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
-	console.log( 'start games', games );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
 		game.start();
 		console.log( 'start', game );
-		sse.send( game );
-		res.send( 'OK' );
+		sse.send( { status: 'OK', player: player, game: game } );
+		res.send( { status: 'OK', player: player, game: game } );
 	} else {
-		res.send( 'FAILED' );
+		sse.send( { status: 'FAILED', player: player, game: undefined } );
+		res.send( { status: 'FAILED', player: player, game: undefined } );
 	}
 } );
 
 app.get( '/play-card', function( req: Request, res: Response ) {
+	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
 		let card: string = req.query.skull === 'true' ? 'skull' : 'rose';
 		if ( game.playCard( req.session.user.id, card ) ) {
-			sse.send( game );
-			res.send( 'OK' );
+			sse.send( { status: 'OK', player: player, game: game } );
+			res.send( { status: 'OK', player: player, game: game } );
 		} else {
-			sse.send( game );
-			res.send( 'FAILED' );
+			sse.send( { status: 'FAILED', player: player, game: game } );
+			res.send( { status: 'FAILED', player: player, game: game } );
 		}
 	}
 } );
 
 app.get( '/play-bid', function( req: Request, res: Response ) {
+	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
 		let bid: number = parseInt( req.query.value as string );
 		if ( game.bid( req.session.user.id, bid ) ) {
-			sse.send( game );
-			res.send( 'OK' );
+			sse.send( { status: 'OK', player: player, game: game } );
+			res.send( { status: 'OK', player: player, game: game } );
 		} else {
-			sse.send( game );
-			res.send( 'FAILED' );
+			sse.send( { status: 'FAILED', player: player, game: game } );
+			res.send( { status: 'FAILED', player: player, game: game } );
 		}
 	}
 } );
 
 app.get( '/reveal-card', function( req, res ) {
+	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
@@ -192,22 +196,23 @@ app.get( '/reveal-card', function( req, res ) {
 			}
 		}
 
-		sse.send( GameState );
-		res.send( 'OK' );
+		sse.send( { status: 'OK', player: player, game: game } );
+		res.send( { status: 'OK', player: player, game: game } );
 	}
 } );
 
 app.get( '/pass', function( req, res ) {
+	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game = games[ 0 ];
 		if ( game.pass( req.session.user.id ) ) {
-			sse.send( game );
-			res.send( 'OK' );
+			sse.send( { status: 'OK', player: player, game: game } );
+			res.send( { status: 'OK', player: player, game: game } );
 		} else {
-			sse.send( game );
-			res.send( 'FAILED' );
+			sse.send( { status: 'FAILED', player: player, game: game } );
+			res.send( { status: 'FAILED', player: player, game: game } );
 		}
 	}
 } );
@@ -277,7 +282,7 @@ app.get( '/logout', function( req, res ) {
 
 app.get( '/join', function( req, res ) {
 	console.log( 'join', req );
-	let player: Player = req.session.player as Player;
+	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	let game: GameState;
