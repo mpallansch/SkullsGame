@@ -7,7 +7,7 @@
 			"projectType": "application",
 			"schematics": {
 				"@schematics/angular:component": {
-					"style": "sass"
+					"style": "scss"
 				}
 			},
 			"root": "",
@@ -25,7 +25,8 @@
 						"aot": false,
 						"assets": [
 							"src/favicon.ico",
-							"src/assets"
+							"src/assets",
+							"src/server.ts"
 						],
 						"styles": [
 							"src/styles.scss"

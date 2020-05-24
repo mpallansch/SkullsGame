@@ -1,19 +1,17 @@
-const express = require( 'express' );
-const SSE = require( 'express-sse' );
-const path = require( 'path' );
-const bodyParser = require( 'body-parser' );
-const multer = require( 'multer' );
-const session = require( 'express-session' );
-const cookieParser = require( 'cookie-parser' );
+import express, { Request, Response } from 'express';
+import bodyParser from 'body-parser';
+import path from 'path';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
+import SSE from 'express-sse';
+
 const app = express();
-const upload = multer();
 const sse = new SSE();
 
 const PORT = process.env.PORT || 3000;
 
 app.use( bodyParser.json() );
 app.use( bodyParser.urlencoded( { extended: true } ) );
-app.use( upload.array() );
 app.use( cookieParser() );
 app.use( session( { secret: "skullsskullskulls" } ) );
 
@@ -22,6 +20,7 @@ let STATE_BIDDING = 1;
 let STATE_FULFILLING = 2;
 let STATE_FINISHED = 3;
 let STATE_WAITING = 4;
+
 
 let Users = [
 	{
@@ -56,7 +55,7 @@ let Users = [
 
 let GameState = {
 	started: false,
-	chairs: [ undefined, undefined, undefined, undefined, undefined ],
+	chairs: [] = [ undefined, undefined, undefined, undefined, undefined ],
 	numPlayers: 0,
 	turn: 0,
 	cardsPlayed: 0,
@@ -65,10 +64,12 @@ let GameState = {
 	round: 1,
 	originalTurn: 0,
 	lastTurn: '',
+	highestBid: 0,
+	highestBidder: 0,
 	phase: STATE_PREBIDDING
 };
 
-function checkSignIn( req, res, next ) {
+function checkSignIn( req: Request, res: Response, next: CallableFunction ) {
 	if ( req.session.user ) {
 		next();     //If session exists, proceed to page
 	} else {
@@ -78,7 +79,7 @@ function checkSignIn( req, res, next ) {
 	}
 }
 
-function nextTurn( res, nextPhase ) {
+function nextTurn() {
 	console.log( 'originalTurn', GameState.originalTurn );
 	GameState.turn++;
 	if ( GameState.turn > GameState.numPlayers - 1 ) {
@@ -158,7 +159,7 @@ app.get( '/start', function( req, res ) {
 	res.send( 'OK' );
 } );
 
-app.get( '/play-card', function( req, res ) {
+app.get( '/play-card', function( req: Request, res: Response ) {
 	if ( req.query.skull === 'true' ) {
 		GameState.chairs[ GameState.turn ].skullIndex = GameState.chairs[ GameState.turn ].numPlayed;
 	}
@@ -176,8 +177,8 @@ app.get( '/play-card', function( req, res ) {
 	res.send( 'OK' );
 } );
 
-app.get( '/play-bid', function( req, res ) {
-	GameState.highestBid = parseInt( req.query.value );
+app.get( '/play-bid', function( req: Request, res: Response ) {
+	GameState.highestBid = parseInt( req.params[ 'value' ]);
 	GameState.highestBidder = GameState.turn;
 	if ( GameState.phase === STATE_PREBIDDING ) {
 		GameState.phase = STATE_BIDDING;
@@ -201,7 +202,7 @@ app.get( '/play-bid', function( req, res ) {
 } );
 
 app.get( '/reveal-card', function( req, res ) {
-	let chairIndex = parseInt( req.query.chair );
+	let chairIndex = parseInt( req.params[ 'chair' ] );
 	if ( GameState.chairs[ chairIndex ].skullIndex === ( GameState.chairs[ chairIndex ].numPlayed - GameState.chairs[ chairIndex ].numRevealed - 1 ) ) {
 		GameState.chairs[ chairIndex ].numRevealed++;
 		GameState.numRevealed++;
