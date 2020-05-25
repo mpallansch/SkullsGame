@@ -1,2 +1,7 @@
 <h1>Login Screen</h1>
-<button (click)="gameService.state = gameService.STATE_HOME">Login</button>
+<p id="message"></p>
+<div>
+	<label for="id">Username: </label><input id="id" type="text" name="id" /><br />
+	<label for="password">Password: </label><input id="password" type="password" name="password" /><br />
+	<button (click)="gameService.state = gameService.STATE_HOME">Login</button>
+</div>

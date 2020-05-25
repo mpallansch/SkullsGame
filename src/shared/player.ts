@@ -11,6 +11,7 @@ export class Player {
 	protected _numPlayed: number;
 	protected _numRevealed: number;
 	protected _skullIndex:number;
+	protected _bid: number;
 	protected _hasSkull: boolean;
 	protected _numWins: number;
 	protected _message: string;
@@ -24,6 +25,7 @@ export class Player {
 		this._numPlayed = 0;
 		this._numRevealed = 0;
 		this._skullIndex = -1;
+		this._bid = 0;
 		this._hasSkull = true;
 		this._numWins = 0;
 		this._message = '';
@@ -73,6 +75,12 @@ export class Player {
 	}
 	set skullIndex( value: number ) {
 		this._skullIndex - value;
+	}
+	get bid(): number {
+		return this._bid;
+	}
+	set bid( value: number ) {
+		this._bid - value;
 	}
 	get defeated(): boolean {
 		return this._defeated;
