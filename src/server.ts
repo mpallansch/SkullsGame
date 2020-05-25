@@ -55,14 +55,19 @@ const PORT = process.env.PORT || 3000;
 app.use( bodyParser.json() );
 app.use( bodyParser.urlencoded( { extended: true } ) );
 app.use( cookieParser() );
-app.use( session( { secret: "skullsskullskulls" } ) );
 app.use( (req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*'); // TODO, set this to be specific domains
 
   next();
 } );
+app.use( session( { secret: "deathcard2deathcard" } ) );
 
-function checkSignIn( req: Request ): Player {
+app.use( '/images', express.static( __dirname + '/public/images' ) );
+app.use( '/js', express.static( __dirname + '/public/js' ) );
+app.use( '/css', express.static( __dirname + '/public/css' ) );
+
+
+let checkSignIn = function( req: Request ): Player {
 	let player: Player;
 	let playerInSession: Player = req.session.user as Player;
 	if ( ! playerInSession ) {
@@ -77,7 +82,54 @@ function checkSignIn( req: Request ): Player {
 		player = new Player( req.session.id );
 	}
 	return player;
-}
+};
+
+app.get( '/', function( req: Request, res: Response ) {
+	let player: Player = checkSignIn( req );
+	sse.send( { status: 'OK', player: player, game: undefined } );
+	res.send( { status: 'OK', player: player, game: undefined } );
+} );
+
+app.post( '/login', function( req: Request, res: Response ) {
+	let newPlayer: Player;
+	if ( !req.body.id || !req.body.password ) {
+		newPlayer = new Player( req.session.id );
+		newPlayer.message = 'Please enter both id and password';
+		res.write( JSON.stringify( { status: 'OK', player: newPlayer } ) );
+	} else {
+		newPlayer = this.checkSignIn( req.body.id, req.body.password );
+		if ( newPlayer.authenticated ) {
+			let findPlayer: Player[] = GameServer.Players.filter( ( player: Player ) => player.username === newPlayer.username );
+			if ( findPlayer || 0 === findPlayer.length ) {
+				newPlayer = new Player( req.session.id );
+				GameServer.Players.push( newPlayer );
+			} else {
+				newPlayer = findPlayer[ 0 ];
+			}
+			sse.send( { status: 'OK', player: newPlayer, game: undefined } );
+			res.send( { status: 'OK', player: newPlayer, game: undefined } );
+		} else {
+			sse.send( { status: 'FAILED', player: newPlayer, game: undefined } );
+			res.send( { status: 'FAILED', player: newPlayer, game: undefined } );
+		}
+	}
+} );
+
+app.get( '/logout', function( req: Request, res: Response ) {
+	console.log( 'logout', req );
+	let player: Player = checkSignIn( req );
+	if ( player ) {
+		player.logout();
+		// TODO:  Need to make sure the user is removed for any ongoing games.
+	}
+	// Whether or not we found the player go ahead and destroy the session.
+	req.session.destroy( function() {
+		console.log( 'user logged out.' )
+		sse.send( { status: 'OK', player: undefined, game: undefined } );
+		res.send( { status: 'OK', player: undefined, game: undefined } );
+	} );
+} );
+
 
 app.get( '/check-username-availability', function( req: Request, res: Response ) {
     // TODO check username availability
@@ -147,21 +199,31 @@ app.post( '/create', function( req: Request, res: Response ) {
 	}
 } );
 
-app.get( '/start', function( req: Request, res: Response ) {
+app.get( '/join', function( req: Request, res: Response ) {
+	console.log( 'join', req );
 	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
-    let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
+	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
+	let game: GameState;
 	if ( games && 1 === games.length ) {
-		let game: GameState = games[ 0 ];
-		game.start();
-		sse.send( { status: 'OK', player: player, game: game } );
-		res.send( { status: 'OK', player: player, game: game } );
+		game = games[ 0 ];
 	} else {
 		res.send( { status: 'FAILED', message: 'Game not found', player: player, game: undefined } );
+		game = new GameState( 4 );
 	}
+	let status = 'OK'
+	if ( game.numPlayers < game.maxNumPlayers ) {
+		game.addPlayer( player, game.numPlayers );
+	} else {
+		player.message = 'Game is full!';
+		status = 'ERROR'
+	}
+	sse.send( { status: status, player: player, game: game } );
+	res.send( { status: status, player: player, game: game } );
+	console.log( 'join GameState', game );
 } );
 
-app.get( '/end', function( req: Request, res: Response ) {
+app.get( '/start', function( req: Request, res: Response ) {
 	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
@@ -176,7 +238,6 @@ app.get( '/end', function( req: Request, res: Response ) {
 			res.send( { status: 'FAILED', player: player, game: undefined } );
 		}
 	} else {
-		player.message = 'Game not found!';
 		sse.send( { status: 'FAILED', player: player, game: undefined } );
 		res.send( { status: 'FAILED', player: player, game: undefined } );
 	}
@@ -188,8 +249,8 @@ app.get( '/play-card', function( req: Request, res: Response ) {
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
-		let card: string = req.query.skull === 'true' ? 'skull' : 'rose';
-		if ( game.playCard( req.session.user.id, card ) ) {
+		let card: string = req.query.card as string;	// Needs to be CARDS.DEATH_CARD or CARDS.LIFE_CARD
+		if ( game.playCard( player, card ) ) {
 			sse.send( { status: 'OK', player: player, game: game } );
 			res.send( { status: 'OK', player: player, game: game } );
 		} else {
@@ -199,14 +260,15 @@ app.get( '/play-card', function( req: Request, res: Response ) {
 	}
 } );
 
-app.get( '/play-bid', function( req: Request, res: Response ) {
+
+app.get( '/bid', function( req: Request, res: Response ) {
 	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
 		let bid: number = parseInt( req.query.value as string );
-		if ( game.bid( req.session.user.id, bid ) ) {
+		if ( game.bid( player, bid ) ) {
 			sse.send( { status: 'OK', player: player, game: game } );
 			res.send( { status: 'OK', player: player, game: game } );
 		} else {
@@ -219,62 +281,23 @@ app.get( '/play-bid', function( req: Request, res: Response ) {
 app.get( '/reveal-card', function( req, res ) {
 	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
+	let chairIndex = parseInt( req.query.chair as string );
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game = games[ 0 ];
-		let chairIndex = parseInt( req.query.chair as string );
-		if ( game.chairs[ chairIndex ].player.skullIndex === ( game.chairs[ chairIndex ].player.numPlayed - game.chairs[ chairIndex ].player.numRevealed - 1 ) ) {
-			game.chairs[ chairIndex ].player.numRevealed++;
-			game.numRevealed++;
-
-			game.phase = PHASES.STATE_WAITING;
-
-			game.lastTurn = game.chairs[ game.turn ].player.displayName + ' revealed a skull';
-
+		if ( game.revealCard( player, chairIndex ) ) {
 			setTimeout( function() {
-				if ( game.chairs[ game.highestBidder ].player.hasSkull ) {
-					if ( Math.random() < ( 1 / game.chairs[ game.highestBidder ].player.numCards ) ) {
-						game.chairs[ game.highestBidder ].player.hasSkull = false;
-					}
-				}
-				game.chairs[ game.highestBidder ].player.numCards--;
-				if ( game.chairs[ game.highestBidder ].player.numCards === 0 ) {
-					game.chairs[ game.highestBidder ].player.defeated = true;
-					game.numPlayers--;
-					game.nextTurn();
-				}
-
-				game.nextRound();
-
-				sse.send( GameState );
+				sse.send( game );
 			}, 5000 );
+			sse.send( { status: 'OK', player: player, game: game } );
+			res.send( { status: 'OK', player: player, game: game } );
 		} else {
-			game.chairs[ chairIndex ].player.numRevealed++;
-			game.numRevealed++;
-
-			game.lastTurn = game.chairs[ game.turn ].player.displayName + ' revealed a flower';
-
-			if ( game.numRevealed === game.highestBid ) {
-				game.chairs[ game.highestBidder ].player.numWins++;
-				if ( game.chairs[ game.highestBidder ].player.numWins === 2 ) {
-					game.phase = PHASES.STATE_WAITING;
-					setTimeout( function() {
-						game.phase = PHASES.STATE_FINISHED;
-						game.started = false;
-						sse.send( GameState );
-					}, 5000 );
-				} else {
-					game.phase = PHASES.STATE_WAITING;
-					setTimeout( function() {
-						game.nextRound();
-						sse.send( GameState );
-					}, 5000 );
-				}
-			}
+			sse.send( { status: 'FAILED', player: player, game: game } );
+			res.send( { status: 'FAILED', player: player, game: game } );
 		}
-
-		sse.send( { status: 'OK', player: player, game: game } );
-		res.send( { status: 'OK', player: player, game: game } );
+	} else {
+		sse.send( { status: 'FAILED', player: player, game: undefined } );
+		res.send( { status: 'FAILED', player: player, game: undefined } );
 	}
 } );
 
@@ -284,7 +307,7 @@ app.get( '/pass', function( req, res ) {
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game = games[ 0 ];
-		if ( game.pass( req.session.user.id ) ) {
+		if ( game.pass( player ) ) {
 			sse.send( { status: 'OK', player: player, game: game } );
 			res.send( { status: 'OK', player: player, game: game } );
 		} else {
@@ -300,7 +323,6 @@ app.post( '/join', function( req, res ) {
 	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
-	let game: GameState;
 	if ( games && 1 === games.length ) {
 		game = games[ 0 ];
 	} else {
@@ -315,9 +337,11 @@ app.post( '/join', function( req, res ) {
         console.log('game after player');
         console.log(game);
 	} else {
-		player.message = 'Game is full!';
-		status = 'ERROR'
-	}
+		player.message = 'Game not found!';
+		sse.send( { status: 'FAILED', player: player, game: undefined } );
+		res.send( { status: 'FAILED', player: player, game: undefined } );
+    }
+
 	sse.send( { status: status, player: player, game: game } );
 	res.send( { status: status, player: player, game: game } );
 } );

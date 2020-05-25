@@ -1,6 +1,7 @@
 import { Player } from './player';
 import { Chair } from './chair';
 import * as PHASES from './phases';
+import * as CARDS from './cards';
 
 export class GameState {
 	protected _id: string;
@@ -170,12 +171,12 @@ export class GameState {
 		} );
 	}
 
-	public pass( userId: string ): boolean {
+	public pass( player: Player ): boolean {
 		let result = false;
 		try {
-			this._chairs[ this._turn ].player.passed = true;
+			player.passed = true;
 			this._numPasses++;
-			this._lastTurn = this._chairs[ this._turn ].player.displayName + ' passed';
+			this._lastTurn = player.displayName + ' passed';
 			this.nextTurn();
 			result = true;
 		} catch ( ex ) {
@@ -184,20 +185,21 @@ export class GameState {
 		return result;
 	}
 
-	playCard( userId: string, card: string ): boolean {
+	playCard( player: Player, card: string ): boolean {
 		let result = false;
 		try {
-			if ( 'skull' === card ) {
-				this._chairs[ this._turn ].player.skullIndex = this._chairs[ this._turn ].player.numPlayed;
+			if ( CARDS.DEATH_CARD === card ) {
+				player.deathCardIndex = player.numPlayed;
 			}
-			this._chairs[ this._turn ].player.numPlayed++;
+			player.numPlayed++;
 			this._cardsPlayed++;
 			if ( this._cardsPlayed === this._numPlayers * 4 ) {
 				this._phase = PHASES.STATE_BIDDING;
 				this.nextTurn();
 			}
-
-			this._lastTurn = this._chairs[ this._turn ].player.displayName + ' played a card';
+			this._lastTurn = player.displayName + ' played a card';
+			// Update the player in the game state.
+			this._chairs[ this._turn ].player = player;
 			result = true;
 		} catch ( ex ) {
 			console.log( ex );
@@ -205,9 +207,11 @@ export class GameState {
 		return result;
 	}
 
-	public bid( userId: string, value: number ): boolean {
+	public bid( player: Player, value: number ): boolean {
 		let result = false;
 		try {
+			// TODO:  Make sure that the value is an accpetable bid.
+			player.bid = value;
 			this._highestBid = value;
 			this._highestBidder = this._turn;
 			if ( this._phase === PHASES.STATE_PREBIDDING ) {
@@ -218,11 +222,67 @@ export class GameState {
 				this._turn = this._highestBidder;
 				this.nextTurn();
 			} else {
-				this._lastTurn = this._chairs[ this._turn ].player.displayName + ' bid ' + this._highestBid;
+				this._lastTurn = player.displayName + ' bid ' + this._highestBid;
 			}
+			// Update the player in the game state.
+			this._chairs[ this._turn ].player = player;
 			result = true;
 		} catch ( ex ) {
 			console.log( ex );
+		}
+		return result;
+	}
+
+	public revealCard( player: Player, chairIndex: number ): boolean {
+		let result = false;
+		if ( this.chairs[ chairIndex ].player.deathCardIndex === ( this.chairs[ chairIndex ].player.numPlayed - this.chairs[ chairIndex ].player.numRevealed - 1 ) ) {
+			this.chairs[ chairIndex ].player.numRevealed++;
+			this.numRevealed++;
+
+			this.phase = PHASES.STATE_WAITING;
+
+			this.lastTurn = this.chairs[ this.turn ].player.displayName + ' revealed a ' + CARDS.DEATH_CARD + ' card';
+
+			setTimeout( function() {
+				if ( this.chairs[ this.highestBidder ].player.hasDeathCard ) {
+					if ( Math.random() < ( 1 / this.chairs[ this.highestBidder ].player.numCards ) ) {
+						this.chairs[ this.highestBidder ].player.hasDeathCard = false;
+					}
+				}
+				this.chairs[ this.highestBidder ].player.numCards--;
+				if ( this.chairs[ this.highestBidder ].player.numCards === 0 ) {
+					this.chairs[ this.highestBidder ].player.defeated = true;
+					this.numPlayers--;
+					this.nextTurn();
+				}
+
+				this.nextRound();
+
+				//sse.send( GameState );
+			}, 5000 );
+		} else {
+			this.chairs[ chairIndex ].player.numRevealed++;
+			this.numRevealed++;
+
+			this.lastTurn = this.chairs[ this.turn ].player.displayName + ' revealed a flower';
+
+			if ( this.numRevealed === this.highestBid ) {
+				this.chairs[ this.highestBidder ].player.numWins++;
+				if ( this.chairs[ this.highestBidder ].player.numWins === 2 ) {
+					this.phase = PHASES.STATE_WAITING;
+					setTimeout( function() {
+						this.phase = PHASES.STATE_FINISHED;
+						this.started = false;
+						//sse.send( GameState );
+					}, 5000 );
+				} else {
+					this.phase = PHASES.STATE_WAITING;
+					setTimeout( function() {
+						this.nextRound();
+						//sse.send( GameState );
+					}, 5000 );
+				}
+			}
 		}
 		return result;
 	}
