@@ -55,7 +55,7 @@ const PORT = process.env.PORT || 3000;
 app.use( bodyParser.json() );
 app.use( bodyParser.urlencoded( { extended: true } ) );
 app.use( cookieParser() );
-app.use( session( { secret: "skullsskullskulls" } ) );
+app.use( session( { secret: "deathcard2deathcard" } ) );
 
 app.use( '/images', express.static( __dirname + '/public/images' ) );
 app.use( '/js', express.static( __dirname + '/public/js' ) );
@@ -185,7 +185,7 @@ app.get( '/play-card', function( req: Request, res: Response ) {
 	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
 	if ( games && 1 === games.length ) {
 		let game: GameState = games[ 0 ];
-		let card: string = req.query.skull === 'true' ? 'skull' : 'rose';
+		let card: string = req.query.card as string;	// Needs to be CARDS.DEATH_CARD or CARDS.LIFE_CARD
 		if ( game.playCard( player, card ) ) {
 			sse.send( { status: 'OK', player: player, game: game } );
 			res.send( { status: 'OK', player: player, game: game } );

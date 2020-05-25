@@ -22,7 +22,7 @@ function renderChairUpdate( chairIndex, chairObj ) {
 		if ( cardsEl$.length > chairObj.numCards ) {
 			cardsEl$.slice( chairObj.numCards ).remove();
 		}
-		$( '.chair' + chairIndex + ' .card.skull' ).removeClass( 'skull' );
+		$( '.chair' + chairIndex + ' .card.deathcard' ).removeClass( 'deathcard' );
 		for ( var i = 0; i < ( chairObj.numCards - chairObj.numPlayed ); i++ ) {
 			$( '.chair' + chairIndex + ' .card:nth-child(' + ( i + 1 ) + ')' ).removeClass( 'played' );
 			if ( chairIndex === position ) {
@@ -33,18 +33,18 @@ function renderChairUpdate( chairIndex, chairObj ) {
 		}
 		for ( var i = ( chairObj.numCards - chairObj.numPlayed ); i < ( chairObj.numCards - chairObj.numPlayed + chairObj.numRevealed ); i++ ) {
 			$( '.chair' + chairIndex + ' .card:nth-child(' + ( i + 1 ) + ')' ).addClass( 'played' ).addClass( 'up' );
-			if ( ( chairObj.numCards - 1 - i ) === chairObj.skullIndex ) {
-				$( '.chair' + chairIndex + ' .card:nth-child(' + ( i + 1 ) + ')' ).addClass( 'skull' );
+			if ( ( chairObj.numCards - 1 - i ) === chairObj.deathCardIndex ) {
+				$( '.chair' + chairIndex + ' .card:nth-child(' + ( i + 1 ) + ')' ).addClass( 'deathcard' );
 			}
 		}
 		for ( var i = ( chairObj.numCards - chairObj.numPlayed + chairObj.numRevealed ); i < chairObj.numCards; i++ ) {
 			$( '.chair' + chairIndex + ' .card:nth-child(' + ( i + 1 ) + ')' ).addClass( 'played' ).removeClass( 'up' );
 		}
 		if ( chairIndex === position ) {
-			if ( chairObj.skullIndex !== -1 || !chairObj.hasSkull ) {
-				var chairEl$ = $( '.chair' + chairIndex + ' .card.skull' );
+			if ( chairObj.deathCardIndex !== -1 || !chairObj.hasDeathCard ) {
+				var chairEl$ = $( '.chair' + chairIndex + ' .card.deathcard' );
 			} else {
-				$( '.chair' + chairIndex + ' .card:nth-child(1)' ).addClass( 'skull' );
+				$( '.chair' + chairIndex + ' .card:nth-child(1)' ).addClass( 'deathcard' );
 			}
 		}
 		if ( chairObj.defeated ) {
@@ -64,8 +64,8 @@ function renderChair( gameBoardEl$, chairIndex, chairObj ) {
 				cardEl$.addClass( 'up' );
 			}
 
-			if ( i === 0 && chairObj.hasSkull ) {
-				cardEl$.addClass( 'skull' );
+			if ( i === 0 && chairObj.hasDeathCard ) {
+				cardEl$.addClass( 'deathcard' );
 			}
 
 			cardEl$.click( cardClick );
@@ -99,7 +99,7 @@ function cardClick( e ) {
 	if ( targetEl$.hasClass( 'active' ) ) {
 		if ( gameState.phase === STATE_PREBIDDING ) {
 			if ( !targetEl$.hasClass( 'played' ) ) {
-				$.ajax( { url: '/play-card?skull=' + targetEl$.hasClass( 'skull' ) + '&cachebust=' + Math.random() * 1000000 } );
+				$.ajax( { url: '/play-card?card=' + ( targetEl$.hasClass( 'deathcard' ) ? 'death' : 'life' ) + '&cachebust=' + Math.random() * 1000000 } );
 			}
 		} else {
 			var chairIndex = parseInt( targetEl$.parent().attr( 'data-chair-index' ) );

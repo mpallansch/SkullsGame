@@ -1,6 +1,7 @@
 import { Player } from './player';
 import { Chair } from './chair';
 import * as PHASES from './phases';
+import * as CARDS from './cards';
 
 export class GameState {
 	protected _id: string;
@@ -187,8 +188,8 @@ export class GameState {
 	playCard( player: Player, card: string ): boolean {
 		let result = false;
 		try {
-			if ( 'skull' === card ) {
-				player.skullIndex = player.numPlayed;
+			if ( CARDS.DEATH_CARD === card ) {
+				player.deathCardIndex = player.numPlayed;
 			}
 			player.numPlayed++;
 			this._cardsPlayed++;
@@ -234,18 +235,18 @@ export class GameState {
 
 	public revealCard( player: Player, chairIndex: number ): boolean {
 		let result = false;
-		if ( this.chairs[ chairIndex ].player.skullIndex === ( this.chairs[ chairIndex ].player.numPlayed - this.chairs[ chairIndex ].player.numRevealed - 1 ) ) {
+		if ( this.chairs[ chairIndex ].player.deathCardIndex === ( this.chairs[ chairIndex ].player.numPlayed - this.chairs[ chairIndex ].player.numRevealed - 1 ) ) {
 			this.chairs[ chairIndex ].player.numRevealed++;
 			this.numRevealed++;
 
 			this.phase = PHASES.STATE_WAITING;
 
-			this.lastTurn = this.chairs[ this.turn ].player.displayName + ' revealed a skull';
+			this.lastTurn = this.chairs[ this.turn ].player.displayName + ' revealed a ' + CARDS.DEATH_CARD + ' card';
 
 			setTimeout( function() {
-				if ( this.chairs[ this.highestBidder ].player.hasSkull ) {
+				if ( this.chairs[ this.highestBidder ].player.hasDeathCard ) {
 					if ( Math.random() < ( 1 / this.chairs[ this.highestBidder ].player.numCards ) ) {
-						this.chairs[ this.highestBidder ].player.hasSkull = false;
+						this.chairs[ this.highestBidder ].player.hasDeathCard = false;
 					}
 				}
 				this.chairs[ this.highestBidder ].player.numCards--;

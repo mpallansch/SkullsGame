@@ -10,9 +10,9 @@ export class Player {
 	protected _numCards: number;
 	protected _numPlayed: number;
 	protected _numRevealed: number;
-	protected _skullIndex:number;
+	protected _deathCardIndex:number;
 	protected _bid: number;
-	protected _hasSkull: boolean;
+	protected _hasDeathCard: boolean;
 	protected _numWins: number;
 	protected _message: string;
 
@@ -24,9 +24,9 @@ export class Player {
 		this._numCards = 4;
 		this._numPlayed = 0;
 		this._numRevealed = 0;
-		this._skullIndex = -1;
+		this._deathCardIndex = -1;
 		this._bid = 0;
-		this._hasSkull = true;
+		this._hasDeathCard = true;
 		this._numWins = 0;
 		this._message = '';
 	}
@@ -70,11 +70,11 @@ export class Player {
 	set numWins( value: number ) {
 		this._numWins = value;
 	}
-	get skullIndex(): number {
-		return this._skullIndex;
+	get deathCardIndex(): number {
+		return this._deathCardIndex;
 	}
-	set skullIndex( value: number ) {
-		this._skullIndex - value;
+	set deathCardIndex( value: number ) {
+		this._deathCardIndex - value;
 	}
 	get bid(): number {
 		return this._bid;
@@ -94,11 +94,11 @@ export class Player {
 	set passed( value: boolean ) {
 		this._passed = value;
 	}
-	get hasSkull(): boolean {
-		return this._hasSkull;
+	get hasDeathCard(): boolean {
+		return this._hasDeathCard;
 	}
-	set hasSkull( value: boolean ) {
-		this._hasSkull = value;
+	set hasDeathCard( value: boolean ) {
+		this._hasDeathCard = value;
 	}
 	get message(): string {
 		return this._message;
@@ -140,8 +140,8 @@ export class Player {
 		this._numCards = 4;
 		this._numPlayed = 0;
 		this._numRevealed = 0;
-		this._skullIndex = -1;
-		this._hasSkull = true;
+		this._deathCardIndex = -1;
+		this._hasDeathCard = true;
 		this._passed = false;
 		this._defeated = false;
 		this._numWins = 0;
@@ -152,8 +152,8 @@ export class Player {
 		this._numCards = 4;
 		this._numPlayed = 0;
 		this._numRevealed = 0;
-		this._skullIndex = -1;
-		this._hasSkull = true;
+		this._deathCardIndex = -1;
+		this._hasDeathCard = true;
 		this._passed = false;
 		this._defeated = false;
 		this._message = '';
