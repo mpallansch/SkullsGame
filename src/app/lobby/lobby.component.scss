@@ -1,0 +1,21 @@
+#not-enough-players {
+    position: absolute;
+    top: 45%;
+    text-align: center;
+    width: 100%;
+    color: red;
+}
+
+#begin {
+    display: none;
+    position: absolute;
+    width: 20%;
+    left: 40%;
+    top: 45%;
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 10px 40px;
+    border-radius: 5px;
+    background-color: lightgreen;
+    font-size: x-large;
+}

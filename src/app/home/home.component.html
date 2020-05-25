@@ -1,2 +1,9 @@
 <h1>Home Screen</h1>
-<button (click)="gameService.state = gameService.STATE_LOBBY">Join Lobby</button>
+<form>
+    <input type="text" placeholder="Lobby Name" name="name" [(ngModel)]="lobbyName" /><br/>
+    <input type="password" placeholder="Lobby Password" name="password" [(ngModel)]="lobbyPassword" /><br/>
+    <button role="button" (click)="joinLobby()">Join Lobby</button>
+    <button role="button" (click)="createLobby()">Create Lobby</button>
+</form>
+<div *ngIf="loading">Loading...</div>
+<p>{{message}}</p>

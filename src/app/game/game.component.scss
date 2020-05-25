@@ -1,0 +1,216 @@
+#round,
+#phase,
+#bid {
+    position: absolute;
+    width: 50%;
+    left: 25%;
+    top: 10px;
+    margin: 0;
+    text-align: center;
+}
+
+#phase {
+    top: 45px;
+}
+
+#bid {
+    top: 80px;
+}
+
+#bidding {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+
+    .bid {
+        display: inline-block;
+        background-color: lightgray;
+        color: black;
+        border-radius: 5px;
+        padding: 5px 10px;
+        border-bottom: 2px solid gray;
+        border-right: 2px solid gray;
+        margin-right: 5px;
+        box-shadow: 0px 0px 5px 5px yellow;
+
+        &:hover {
+            cursor: pointer;
+        }
+    }
+}
+
+#players div,
+#chairs .chair {
+    position: absolute;
+    width: 30%;
+    height: 10%;
+    text-align: center;
+    box-sizing: border-box;
+
+    &:nth-child(1) {
+        bottom: 50px;
+        left: 35%;
+    }
+
+    &:nth-child(2) {
+        bottom: 20%;
+        left: 5%;
+    }
+
+    &:nth-child(3) {
+        top: 15%;
+        left: 5%;
+    }
+
+    &:nth-child(4) {
+        top: 15%;
+        right: 5%;
+    }
+
+    &:nth-child(5) {
+        bottom: 20%;
+        right: 5%;
+    }
+}
+
+#players div {
+    padding-top: 4%;
+    color: green;
+
+    &.empty {
+        color: gray;
+    }
+}
+
+#chairs .chair:nth-child(2) {
+    transform: rotate(45deg);
+}
+
+#chairs .chair:nth-child(3) {
+    transform: rotate(135deg);
+}
+
+#chairs .chair:nth-child(4) {
+    transform: rotate(225deg);
+}
+
+#chairs .chair:nth-child(5) {
+    transform: rotate(315deg);
+}
+
+#chairs .chair::before {
+    content: " ";
+    position: absolute;
+    top: -102px;
+    left: calc(50% - 32px);
+    width: 65px;
+    height: 65px;
+    border-radius: 5px;
+    background-color: rgb(20, 20, 20);
+}
+
+#chairs .chair.win::before {
+    background-color: pink;
+}
+
+.player-name {
+    color: green;
+}
+
+.player-name.defeated {
+    color: red;
+}
+
+.card {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    margin: 5px;
+    transition: transform 0.5s linear 0s;
+    -webkit-transition: -webkit-transform 0.5s linear 0s;
+    -moz-transition: -moz-transform 0.5s linear 0s;
+    -o-transition: -o-transform 0.5s linear 0s;
+}
+
+.card .front,
+.card .back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: url('../../assets/images/skulls-flower.png');
+    background-size: 100% 100%;
+    transition: transform 0.5s linear 0s;
+    -webkit-transition: -webkit-transform 0.5s linear 0s;
+    -moz-transition: -moz-transform 0.5s linear 0s;
+    -o-transition: -o-transform 0.5s linear 0s;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.card.skull .front {
+    background-image: url('../../assets/images/skulls-skull.png');
+}
+
+.card .back {
+    background-image: url('../../assets/images/skulls-down.png');
+}
+
+.card.up .front {
+    transform: rotateY(0deg);
+    -webkit-transform: rotateY(0deg);
+    -moz-transform: rotateY(0deg);
+    -o-transform: rotateY(0deg);
+}
+
+.card.up .back {
+    transform: rotateY(180deg);
+    -webkit-transform: rotateY(180deg);
+    -moz-transform: rotateY(180deg);
+    -o-transform: rotateY(180deg);
+}
+
+.card.active {
+    border-radius: 25px;
+    box-shadow: 0px 0px 5px 5px yellow;
+}
+
+.card.played {
+    transform: translate(-90px, -100px);
+    z-index: 1;
+}
+
+.card.played.up {
+    transform: translate(-90px, -200px);
+    z-index: 4;
+}
+
+.card:nth-child(1).played {
+    transform: translate(60px, -100px);
+    z-index: 4;
+}
+
+.card:nth-child(1).played.up {
+    transform: translate(60px, -200px);
+    z-index: 1;
+}
+
+.card:nth-child(2).played {
+    transform: translate(10px, -100px);
+    z-index: 3;
+}
+
+.card:nth-child(2).played.up {
+    transform: translate(10px, -200px);
+    z-index: 2;
+}
+
+.card:nth-child(3).played {
+    transform: translate(-40px, -100px);
+    z-index: 2;
+}
+
+.card:nth-child(3).played.up {
+    transform: translate(-40px, -200px);
+    z-index: 3;
+}

@@ -1,2 +1,18 @@
 <h1>Login Screen</h1>
-<button (click)="gameService.state = gameService.STATE_HOME">Login</button>
+<form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+    <label for="username">Username: </label><input id="username" type="text" name="id" [(ngModel)]="username" />
+    <button *ngIf="register" type="button" (click)="checkUsernameAvailability()">Check Availability</button>
+    <span class="availability" [ngSwitch]="availability">
+    <span class="positive" *ngSwitchCase="USERNAME_AVAILABLE">Username is available</span>
+    <span class="negative" *ngSwitchCase="USERNAME_UNAVAILABLE">Username is not available</span>
+    <span class="negative" *ngSwitchCase="USERNAME_ERROR">Error checking username availability</span>
+    </span><br />
+    <label for="password">Password: </label><input id="password" type="password" name="password" [(ngModel)]="password" /><br />
+    <label for="email" *ngIf="register">Email Address: </label><input *ngIf="register" id="email" type="email" name="email" [(ngModel)]="email" /><br />
+    <input type="submit" value="Submit" [disabled]="!loginForm.form.valid" />
+    <p id="message" *ngIf="message">{{message}}</p>
+    <p *ngIf="!register">Don't have an account? <button (click)="register = true">Register Now</button></p>
+    <p *ngIf="register"> <button (click)="register = false">Login</button></p>
+    <p *ngIf="loading">Loading....</p>
+</form>
+

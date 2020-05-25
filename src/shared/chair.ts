@@ -12,10 +12,11 @@ export class Chair {
 		return this._player;
 	}
 
-	public set player( value: Player ) {
-		if ( value.authenticated ) {
+    public set player( value: Player ) {
+        //TODO re-enable this check
+		//if ( value.authenticated ) {
 			this._player = value;
-		}
+		//}
 	}
 
 }

@@ -1,2 +1,9 @@
 <h1>Lobby Screen</h1>
-<button (click)="gameService.state = gameService.STATE_GAME">Join Game</button>
+<div>
+    <ul>
+        <li *ngFor="let chair of gameService.game.chairs">{{chair && chair.player ? (chair.player | json) : 'Empty'}}</li>
+    </ul>
+</div>
+<button (click)="startGame()">Start Game</button>
+<div *ngIf="loading">Loading...</div>
+<p>{{message}}</p>

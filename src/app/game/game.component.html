@@ -1,3 +1,23 @@
 <h1>Game Screen</h1>
+<p id="phase"></p>
+<p id="waiting"></p>
+<div id="bid"></div>
+<div id="bidding"></div>
+<p id="round"></p>
+<div id="chairs">
+    <div *ngFor="let chair of gameService.game.chairs">
+        <div *ngIf="chair && chair.player">
+            <div class="cards">
+                <div class="card" *ngFor="let card of [].constructor(chair.player.numCards); let i = index" [ngClass]="{skull: (chair.player.numCards - 1 - i) === chair.player.skullIndex, played: i < ( chair.player.numCards - chair.player.numPlayed + chair.player.numRevealed ), up: i >= ( chair.player.numCards - chair.player.numPlayed + chair.player.numRevealed )}">
+                    <div class="front"></div>
+                    <div class="back"></div>
+                </div>
+            </div>
+        </div>
+        <div *ngIf="!chair || !chair.player">
+            Empty
+        </div>
+    </div>
+</div>
 <button (click)="gameService.state = gameService.STATE_LOBBY">Back to Lobby</button>
 <button (click)="gameService.state = gameService.STATE_HOME">Back to Home</button>
