@@ -95,7 +95,7 @@ app.post( '/login', function( req: Request, res: Response ) {
 	if ( !req.body.id || !req.body.password ) {
 		newPlayer = new Player( req.session.id );
 		newPlayer.message = 'Please enter both id and password';
-		res.write( JSON.stringify( { status: 'OK', player: newPlayer } ) );
+		res.send( JSON.stringify( { status: 'OK', player: newPlayer } ) );
 	} else {
 		newPlayer = this.checkSignIn( req.body.id, req.body.password );
 		if ( newPlayer.authenticated ) {
@@ -322,7 +322,8 @@ app.get( '/game-events',  sse.init );
 app.post( '/join', function( req, res ) {
 	let player: Player = checkSignIn( req );
 	let gameId: string = req.query.id as string;
-	let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
+    let games: GameState[] = GameServer.Games.filter( item => item.id === gameId );
+    let game: GameState;
 	if ( games && 1 === games.length ) {
 		game = games[ 0 ];
 	} else {

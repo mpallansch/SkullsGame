@@ -1,7 +1,7 @@
 <h1>Lobby Screen</h1>
 <div>
     <ul>
-        <li *ngFor="let chair of gameService.game.chairs">{{chair && chair.player ? (chair.player | json) : 'Empty'}}</li>
+        <li *ngFor="let chair of gameService.game.chairs">{{chair && chair.player ? chair.player.displayName : 'Empty'}}</li>
     </ul>
 </div>
 <button (click)="startGame()">Start Game</button>
